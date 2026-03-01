@@ -83,7 +83,7 @@ export function SettingsPage() {
               <p className="text-[10px] font-mono text-nothing-grey-600">Connected via OAuth</p>
             </div>
           </div>
-          <a href="/api/auth/github" className="text-xs font-mono text-nothing-grey-400 hover:text-nothing-white transition-colors">Reconnect</a>
+          <a href={`${import.meta.env.VITE_API_URL || ''}/api/auth/github`} className="text-xs font-mono text-nothing-grey-400 hover:text-nothing-white transition-colors">Reconnect</a>
         </div>
       </Card>
     </div>

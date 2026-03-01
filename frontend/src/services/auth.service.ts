@@ -29,6 +29,7 @@ export const authService = {
   },
 
   getGitHubAuthUrl(): string {
-    return '/api/auth/github';
+    const base = import.meta.env.VITE_API_URL || '';
+    return `${base}/api/auth/github`;
   },
 };
