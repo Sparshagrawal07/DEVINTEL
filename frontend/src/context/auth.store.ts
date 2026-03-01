@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { User, TokenPair } from '../types';
+import type { User } from '../types';
 import { apiClient } from '../services/api';
 import { authService } from '../services/auth.service';
 
@@ -17,7 +17,7 @@ interface AuthStore {
   updateUser: (partial: Partial<User>) => void;
 }
 
-export const useAuthStore = create<AuthStore>((set, get) => ({
+export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
