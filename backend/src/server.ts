@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import 'express-async-errors';
-import express from 'express';
+import express, { Router } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -81,15 +81,35 @@ async function bootstrap(): Promise<void> {
   // ============================================================
   // API ROUTES
   // ============================================================
-  app.use('/api/auth', authRoutes);
-  app.use('/api/users', usersRoutes);
-  app.use('/api/github', githubRoutes);
-  app.use('/api/resume', resumeRoutes);
-  app.use('/api/analytics', analyticsRoutes);
+  const apiRouter = Router();
+  apiRouter.use('/auth', authRoutes);
+  apiRouter.use('/users', usersRoutes);
+  apiRouter.use('/github', githubRoutes);
+  apiRouter.use('/resume', resumeRoutes);
+  apiRouter.use('/analytics', analyticsRoutes);
+
+  // Mount at /api (primary path)
+  app.use('/api', apiRouter);
+  // Also mount at root so it works when a reverse proxy strips /api
+  app.use(apiRouter);
 
   // ============================================================
   // ERROR HANDLING
   // ============================================================
+
+  // Serve frontend static files in production
+  if (env.NODE_ENV === 'production') {
+    const frontendDist = path.resolve(__dirname, '../../frontend/dist');
+    if (fs.existsSync(frontendDist)) {
+      app.use(express.static(frontendDist));
+      // SPA fallback: any non-API route returns index.html
+      app.get('*', (_req, res, next) => {
+        if (_req.originalUrl.startsWith('/api/')) return next();
+        res.sendFile(path.join(frontendDist, 'index.html'));
+      });
+    }
+  }
+
   app.use(notFoundHandler);
   app.use(errorHandler);
 
