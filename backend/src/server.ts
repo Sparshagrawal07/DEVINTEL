@@ -18,6 +18,7 @@ import { startWorkers } from './jobs/queue';
 import authRoutes from './modules/auth/auth.routes';
 import usersRoutes from './modules/users/users.routes';
 import githubRoutes from './modules/github/github.routes';
+import leetcodeRoutes from './modules/leetcode/leetcode.routes';
 import resumeRoutes from './modules/resume/resume.routes';
 import analyticsRoutes from './modules/analytics/analytics.routes';
 
@@ -85,6 +86,7 @@ async function bootstrap(): Promise<void> {
   apiRouter.use('/auth', authRoutes);
   apiRouter.use('/users', usersRoutes);
   apiRouter.use('/github', githubRoutes);
+  apiRouter.use('/leetcode', leetcodeRoutes);
   apiRouter.use('/resume', resumeRoutes);
   apiRouter.use('/analytics', analyticsRoutes);
 

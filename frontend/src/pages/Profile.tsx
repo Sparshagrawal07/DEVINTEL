@@ -66,10 +66,11 @@ export function ProfilePage() {
             )}
           </div>
           {stats && (
-            <div className="grid grid-cols-3 gap-6 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
               {[
                 { label: 'Repos', value: stats.total_repos },
                 { label: 'Commits', value: stats.total_commits },
+                { label: 'LC Solved', value: stats.leetcode_solved ?? '\u2014' },
                 { label: 'DevScore', value: stats.latest_dev_score != null ? Number(stats.latest_dev_score).toFixed(0) : '\u2014' },
               ].map((s) => (
                 <div key={s.label}>

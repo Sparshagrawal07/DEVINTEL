@@ -24,4 +24,6 @@ export interface UserStats {
   total_skills: number;
   latest_dev_score: number | null;
   member_since: Date;
+  leetcode_solved: number | null;
+  leetcode_username: string | null;
 }

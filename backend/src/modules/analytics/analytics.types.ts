@@ -37,6 +37,20 @@ export interface DashboardData {
   activityHeatmap: { date: string; count: number }[];
   topLanguages: { language: string; percentage: number }[];
   recentActivity: { action: string; timestamp: Date; metadata: Record<string, any> }[];
+  leetcode: {
+    connected: boolean;
+    username: string | null;
+    totalSolved: number;
+    easySolved: number;
+    mediumSolved: number;
+    hardSolved: number;
+    acceptanceRate: number;
+    ranking: number;
+    contestRating: number | null;
+    contestsAttended: number;
+    streak: number;
+    submissionCalendar: { date: string; count: number }[];
+  } | null;
 }
 
 export interface CareerTarget {

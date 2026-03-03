@@ -60,7 +60,9 @@ export class UsersRepository {
         (SELECT COUNT(*)::int FROM pull_requests WHERE user_id = $1) AS total_prs,
         (SELECT COUNT(*)::int FROM skills WHERE user_id = $1) AS total_skills,
         (SELECT composite_score FROM dev_scores WHERE user_id = $1 ORDER BY snapshot_date DESC LIMIT 1) AS latest_dev_score,
-        (SELECT created_at FROM users WHERE id = $1) AS member_since
+        (SELECT created_at FROM users WHERE id = $1) AS member_since,
+        (SELECT total_solved FROM leetcode_profiles WHERE user_id = $1) AS leetcode_solved,
+        (SELECT leetcode_username FROM leetcode_profiles WHERE user_id = $1) AS leetcode_username
     `, [userId]);
 
     return stats ?? {
@@ -70,6 +72,8 @@ export class UsersRepository {
       total_skills: 0,
       latest_dev_score: null,
       member_since: new Date(),
+      leetcode_solved: null,
+      leetcode_username: null,
     };
   }
 

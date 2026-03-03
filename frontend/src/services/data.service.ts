@@ -1,5 +1,5 @@
 import { apiClient } from './api';
-import type { Repository, IntelligenceMetrics, DashboardData, ResumeAnalysis, DevScore, CareerTarget, UserStats, ScoreTrend } from '../types';
+import type { Repository, IntelligenceMetrics, DashboardData, ResumeAnalysis, DevScore, CareerTarget, UserStats, ScoreTrend, LeetCodeStats, LeetCodeProfile } from '../types';
 
 export const githubService = {
   async syncAll() {
@@ -15,6 +15,32 @@ export const githubService = {
   async getMetrics() {
     const res = await apiClient.get<{ metrics: IntelligenceMetrics }>('/github/metrics');
     return res.data!.metrics;
+  },
+};
+
+export const leetcodeService = {
+  async connect(username: string) {
+    const res = await apiClient.post<{ stats: LeetCodeStats }>('/leetcode/connect', { username });
+    return res.data!.stats;
+  },
+
+  async disconnect() {
+    await apiClient.post('/leetcode/disconnect');
+  },
+
+  async sync() {
+    const res = await apiClient.post<{ stats: LeetCodeStats }>('/leetcode/sync');
+    return res.data!.stats;
+  },
+
+  async getStats() {
+    const res = await apiClient.get<{ stats: LeetCodeStats }>('/leetcode/stats');
+    return res.data!.stats;
+  },
+
+  async getProfile() {
+    const res = await apiClient.get<{ profile: LeetCodeProfile | null }>('/leetcode/profile');
+    return res.data!.profile;
   },
 };
 

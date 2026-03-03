@@ -2,18 +2,21 @@ import { AnalyticsRepository } from './analytics.repository';
 import { GitHubService } from '../github/github.service';
 import { GitHubRepository } from '../github/github.repository';
 import { ResumeRepository } from '../resume/resume.repository';
+import { LeetCodeRepository } from '../leetcode/leetcode.repository';
 import { DashboardData, DevScore, SkillGap, CreateCareerTargetDTO } from './analytics.types';
 import { cacheGet, cacheSet, cacheDelete } from '../../config/redis';
 import { logger } from '../../config/logger';
 
 export class AnalyticsService {
   private ghService: GitHubService;
+  private lcRepo: LeetCodeRepository;
 
   constructor(
     private readonly analyticsRepo: AnalyticsRepository,
     private readonly resumeRepo: ResumeRepository
   ) {
     this.ghService = new GitHubService(new GitHubRepository());
+    this.lcRepo = new LeetCodeRepository();
   }
 
   /**
@@ -86,13 +89,14 @@ export class AnalyticsService {
     const cached = await cacheGet<DashboardData>(`dashboard:${userId}`);
     if (cached) return cached;
 
-    const [currentScore, scoreTrend, skills, heatmap, recentActivity, activeTarget] = await Promise.all([
+    const [currentScore, scoreTrend, skills, heatmap, recentActivity, activeTarget, lcProfile] = await Promise.all([
       this.analyticsRepo.getLatestScore(userId),
       this.analyticsRepo.getScoreTrend(userId, 90),
       this.analyticsRepo.getUserSkills(userId),
       this.analyticsRepo.getActivityHeatmap(userId, 365),
       this.analyticsRepo.getRecentActivity(userId, 20),
       this.analyticsRepo.getActiveCareerTarget(userId),
+      this.lcRepo.getProfileByUser(userId),
     ]);
 
     // Compute skill gaps
@@ -138,6 +142,26 @@ export class AnalyticsService {
       percentage: totalBytes > 0 ? Math.round((Number(l.total_bytes) / totalBytes) * 10000) / 100 : 0,
     }));
 
+    // Build LeetCode dashboard section
+    let leetcodeData: DashboardData['leetcode'] = null;
+    if (lcProfile) {
+      const lcCalendar = await this.lcRepo.getSubmissionCalendar(userId, 365);
+      leetcodeData = {
+        connected: true,
+        username: lcProfile.leetcode_username,
+        totalSolved: lcProfile.total_solved,
+        easySolved: lcProfile.easy_solved,
+        mediumSolved: lcProfile.medium_solved,
+        hardSolved: lcProfile.hard_solved,
+        acceptanceRate: Number(lcProfile.acceptance_rate),
+        ranking: lcProfile.ranking,
+        contestRating: lcProfile.contest_rating,
+        contestsAttended: lcProfile.contests_attended,
+        streak: lcProfile.streak,
+        submissionCalendar: lcCalendar,
+      };
+    }
+
     const dashboard: DashboardData = {
       currentScore,
       scoreTrend,
@@ -145,6 +169,7 @@ export class AnalyticsService {
       activityHeatmap: heatmap,
       topLanguages,
       recentActivity,
+      leetcode: leetcodeData,
     };
 
     // Cache for 5 minutes

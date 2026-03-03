@@ -152,6 +152,20 @@ export interface DashboardData {
   activityHeatmap: { date: string; count: number }[];
   topLanguages: { language: string; percentage: number }[];
   recentActivity: { action: string; timestamp: string; metadata: Record<string, any> }[];
+  leetcode: {
+    connected: boolean;
+    username: string | null;
+    totalSolved: number;
+    easySolved: number;
+    mediumSolved: number;
+    hardSolved: number;
+    acceptanceRate: number;
+    ranking: number;
+    contestRating: number | null;
+    contestsAttended: number;
+    streak: number;
+    submissionCalendar: { date: string; count: number }[];
+  } | null;
 }
 
 export interface CareerTarget {
@@ -172,4 +186,41 @@ export interface UserStats {
   total_skills: number;
   latest_dev_score: number | null;
   member_since: string;
+  leetcode_solved: number | null;
+  leetcode_username: string | null;
+}
+
+// ============================================================
+// LeetCode Types
+// ============================================================
+
+export interface LeetCodeProfile {
+  id: string;
+  leetcode_username: string;
+  total_solved: number;
+  easy_solved: number;
+  medium_solved: number;
+  hard_solved: number;
+  acceptance_rate: number;
+  ranking: number;
+  contest_rating: number | null;
+  contests_attended: number;
+  streak: number;
+  badge_count: number;
+  last_synced_at: string | null;
+}
+
+export interface LeetCodeStats {
+  totalSolved: number;
+  easySolved: number;
+  mediumSolved: number;
+  hardSolved: number;
+  acceptanceRate: number;
+  ranking: number;
+  contestRating: number | null;
+  contestsAttended: number;
+  streak: number;
+  totalSubmissions: number;
+  submissionCalendar: { date: string; count: number }[];
+  skillTags: string[];
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, Badge, Skeleton, Button } from '../components/primitives';
 import { useToast } from '../components/primitives';
 import { RadarChart, LineChart, ActivityHeatmap, DonutChart } from '../components/charts';
-import { analyticsService, githubService, usersService } from '../services/data.service';
+import { analyticsService, githubService, usersService, leetcodeService } from '../services/data.service';
 import type { DashboardData, IntelligenceMetrics, UserStats } from '../types';
 import { clsx } from 'clsx';
 
@@ -67,6 +67,8 @@ export function DashboardPage() {
     setSyncing(true);
     try {
       const result = await githubService.syncAll();
+      // Also sync LeetCode if connected
+      try { await leetcodeService.sync(); } catch { /* not connected */ }
       addToast(`Synced ${result.repositories} repos, ${result.commits} commits, ${result.pullRequests} PRs`, 'success');
       await loadData();
     } catch {
@@ -127,9 +129,9 @@ export function DashboardPage() {
           <MetricCard label="Repos" value={stats.total_repos} />
           <MetricCard label="Commits" value={stats.total_commits.toLocaleString()} />
           <MetricCard label="Pull Requests" value={stats.total_prs} />
-          <MetricCard label="Skills" value={stats.total_skills} />
+          <MetricCard label="LC Solved" value={dashboard?.leetcode?.totalSolved ?? '\u2014'} />
           <MetricCard label="DevScore" value={stats.latest_dev_score != null ? Number(stats.latest_dev_score).toFixed(0) : '\u2014'} suffix="/100" />
-          <MetricCard label="Member Since" value={new Date(stats.member_since).getFullYear().toString()} />
+          <MetricCard label="LC Rating" value={dashboard?.leetcode?.contestRating ? Math.round(dashboard.leetcode.contestRating).toString() : '\u2014'} />
         </div>
       )}
 
@@ -193,6 +195,53 @@ export function DashboardPage() {
           )}
         </Card>
       </div>
+
+      {/* LeetCode Stats */}
+      {dashboard?.leetcode?.connected && (
+        <Card>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xs font-mono uppercase tracking-[0.15em] text-nothing-grey-400">LeetCode</h3>
+            <Badge>{dashboard.leetcode.username}</Badge>
+          </div>
+          <div className="flex flex-col md:flex-row items-center gap-8">
+            <DonutChart
+              data={[
+                { label: 'Easy', value: dashboard.leetcode.easySolved, color: '#00b8a3' },
+                { label: 'Medium', value: dashboard.leetcode.mediumSolved, color: '#ffc01e' },
+                { label: 'Hard', value: dashboard.leetcode.hardSolved, color: '#d71921' },
+              ]}
+              size={150} thickness={22}
+              centerValue={dashboard.leetcode.totalSolved.toString()} centerLabel="SOLVED"
+            />
+            <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-4 w-full">
+              <div className="space-y-1">
+                <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-nothing-grey-500">Easy</p>
+                <p className="text-lg font-mono font-bold text-[#00b8a3]">{dashboard.leetcode.easySolved}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-nothing-grey-500">Medium</p>
+                <p className="text-lg font-mono font-bold text-[#ffc01e]">{dashboard.leetcode.mediumSolved}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-nothing-grey-500">Hard</p>
+                <p className="text-lg font-mono font-bold text-[#d71921]">{dashboard.leetcode.hardSolved}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-nothing-grey-500">Acceptance</p>
+                <p className="text-lg font-mono font-bold text-nothing-white">{dashboard.leetcode.acceptanceRate?.toFixed(1) ?? '\u2014'}%</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-nothing-grey-500">Ranking</p>
+                <p className="text-lg font-mono font-bold text-nothing-white">{dashboard.leetcode.ranking?.toLocaleString() ?? '\u2014'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-nothing-grey-500">Contests</p>
+                <p className="text-lg font-mono font-bold text-nothing-white">{dashboard.leetcode.contestsAttended ?? 0}</p>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card>
         <h3 className="text-xs font-mono uppercase tracking-[0.15em] text-nothing-grey-400 mb-4">Activity</h3>
