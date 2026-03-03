@@ -3,6 +3,7 @@ import { Card, Button, Input, Textarea } from '../components/primitives';
 import { useToast } from '../components/primitives';
 import { useAuthStore } from '../context/auth.store';
 import { usersService, analyticsService } from '../services/data.service';
+import { authService } from '../services/auth.service';
 
 export function SettingsPage() {
   const { user } = useAuthStore();
@@ -83,7 +84,7 @@ export function SettingsPage() {
               <p className="text-[10px] font-mono text-nothing-grey-600">Connected via OAuth</p>
             </div>
           </div>
-          <a href={`${import.meta.env.VITE_API_URL || ''}/api/auth/github`} className="text-xs font-mono text-nothing-grey-400 hover:text-nothing-white transition-colors">Reconnect</a>
+          <a href={authService.getGitHubAuthUrl()} className="text-xs font-mono text-nothing-grey-400 hover:text-nothing-white transition-colors">Reconnect</a>
         </div>
       </Card>
     </div>

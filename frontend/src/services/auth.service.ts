@@ -1,4 +1,4 @@
-import { apiClient } from './api';
+import { apiClient, API_BASE } from './api';
 import type { User, TokenPair } from '../types';
 
 export const authService = {
@@ -29,7 +29,6 @@ export const authService = {
   },
 
   getGitHubAuthUrl(): string {
-    const base = import.meta.env.VITE_API_URL || '';
-    return `${base}/api/auth/github`;
+    return `${API_BASE}/auth/github`;
   },
 };

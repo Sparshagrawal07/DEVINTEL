@@ -1,6 +1,19 @@
 import type { ApiResponse } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+function normalizeApiBase(rawBase?: string): string {
+  const trimmed = (rawBase || '').trim();
+
+  if (!trimmed) return '/api';
+
+  const noTrailingSlash = trimmed.replace(/\/+$/, '');
+  if (noTrailingSlash === '/api' || noTrailingSlash.endsWith('/api')) {
+    return noTrailingSlash;
+  }
+
+  return `${noTrailingSlash}/api`;
+}
+
+export const API_BASE = normalizeApiBase(import.meta.env.VITE_API_URL);
 
 class ApiClient {
   private accessToken: string | null = null;
