@@ -1,23 +1,30 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { GitHubService } from './github.service';
+import { cacheDelete } from '../../config/redis';
 
 export class GitHubController {
   constructor(private readonly ghService: GitHubService) {}
 
   syncRepos = async (req: Request, res: Response): Promise<void> => {
-    const result = await this.ghService.syncRepositories(req.user!.userId);
+    const userId = req.user!.userId;
+    const result = await this.ghService.syncRepositories(userId);
+    await cacheDelete(`dashboard:${userId}`);
     res.status(StatusCodes.OK).json({ status: 'success', data: result });
   };
 
   syncCommits = async (req: Request, res: Response): Promise<void> => {
+    const userId = req.user!.userId;
     const { repoId } = req.query;
-    const result = await this.ghService.syncCommits(req.user!.userId, repoId as string | undefined);
+    const result = await this.ghService.syncCommits(userId, repoId as string | undefined);
+    await cacheDelete(`dashboard:${userId}`);
     res.status(StatusCodes.OK).json({ status: 'success', data: result });
   };
 
   syncPRs = async (req: Request, res: Response): Promise<void> => {
-    const result = await this.ghService.syncPullRequests(req.user!.userId);
+    const userId = req.user!.userId;
+    const result = await this.ghService.syncPullRequests(userId);
+    await cacheDelete(`dashboard:${userId}`);
     res.status(StatusCodes.OK).json({ status: 'success', data: result });
   };
 
@@ -32,9 +39,13 @@ export class GitHubController {
   };
 
   fullSync = async (req: Request, res: Response): Promise<void> => {
-    const repoResult = await this.ghService.syncRepositories(req.user!.userId);
-    const commitResult = await this.ghService.syncCommits(req.user!.userId);
-    const prResult = await this.ghService.syncPullRequests(req.user!.userId);
+    const userId = req.user!.userId;
+    const repoResult = await this.ghService.syncRepositories(userId);
+    const commitResult = await this.ghService.syncCommits(userId);
+    const prResult = await this.ghService.syncPullRequests(userId);
+
+    // Invalidate dashboard cache so fresh data is returned immediately
+    await cacheDelete(`dashboard:${userId}`);
 
     res.status(StatusCodes.OK).json({
       status: 'success',

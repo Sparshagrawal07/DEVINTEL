@@ -22,6 +22,14 @@ export class GitHubService {
     return oauth.access_token;
   }
 
+  async getGitHubUsername(userId: string): Promise<string | null> {
+    const oauth = await queryOne<{ provider_username: string }>(
+      'SELECT provider_username FROM oauth_accounts WHERE user_id = $1 AND provider = $2',
+      [userId, 'github']
+    );
+    return oauth?.provider_username ?? null;
+  }
+
   async syncRepositories(userId: string): Promise<{ synced: number }> {
     const accessToken = await this.getAccessToken(userId);
     const repos = await this.fetchAllRepos(accessToken);
@@ -69,6 +77,7 @@ export class GitHubService {
 
   async syncCommits(userId: string, repoId?: string): Promise<{ synced: number }> {
     const accessToken = await this.getAccessToken(userId);
+    const githubUsername = await this.getGitHubUsername(userId);
 
     let repos;
     if (repoId) {
@@ -83,7 +92,7 @@ export class GitHubService {
 
     for (const repo of repos) {
       try {
-        const commits = await this.fetchCommits(accessToken, repo.full_name);
+        const commits = await this.fetchCommits(accessToken, repo.full_name, githubUsername || undefined);
 
         for (const commit of commits) {
           await this.ghRepo.upsertCommit({
@@ -310,22 +319,37 @@ export class GitHubService {
     return (await response.json()) as Record<string, number>;
   }
 
-  private async fetchCommits(accessToken: string, fullName: string, perPage: number = 100): Promise<GitHubCommit[]> {
+  private async fetchCommits(accessToken: string, fullName: string, author?: string): Promise<GitHubCommit[]> {
     const since = new Date();
     since.setFullYear(since.getFullYear() - 1);
 
-    const response = await fetch(
-      `https://api.github.com/repos/${fullName}/commits?per_page=${perPage}&since=${since.toISOString()}`,
-      {
+    const allCommits: GitHubCommit[] = [];
+    let page = 1;
+    const perPage = 100;
+
+    while (true) {
+      let url = `https://api.github.com/repos/${fullName}/commits?per_page=${perPage}&page=${page}&since=${since.toISOString()}`;
+      if (author) {
+        url += `&author=${encodeURIComponent(author)}`;
+      }
+
+      const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           Accept: 'application/vnd.github.v3+json',
         },
-      }
-    );
+      });
 
-    if (!response.ok) return [];
-    return (await response.json()) as GitHubCommit[];
+      if (!response.ok) break;
+      const commits = (await response.json()) as GitHubCommit[];
+      if (commits.length === 0) break;
+
+      allCommits.push(...commits);
+      if (commits.length < perPage) break;
+      page++;
+    }
+
+    return allCommits;
   }
 
   private async fetchPullRequests(accessToken: string, fullName: string): Promise<GitHubPR[]> {

@@ -79,10 +79,10 @@ export class GitHubRepository {
 
   async getCommitFrequency(userId: string, days: number = 365): Promise<{ date: string; count: number }[]> {
     return query<{ date: string; count: number }>(
-      `SELECT DATE(committed_at) as date, COUNT(*)::int as count
+      `SELECT DATE(committed_at AT TIME ZONE 'UTC') as date, COUNT(*)::int as count
        FROM commits
        WHERE user_id = $1 AND committed_at >= NOW() - INTERVAL '1 day' * $2
-       GROUP BY DATE(committed_at)
+       GROUP BY DATE(committed_at AT TIME ZONE 'UTC')
        ORDER BY date`,
       [userId, days]
     );
