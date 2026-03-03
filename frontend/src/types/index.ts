@@ -32,6 +32,8 @@ export interface User {
   bio: string | null;
   location: string | null;
   is_active: boolean;
+  is_onboarded: boolean;
+  onboarding_step: number;
   created_at: string;
 }
 
@@ -223,4 +225,53 @@ export interface LeetCodeStats {
   totalSubmissions: number;
   submissionCalendar: { date: string; count: number }[];
   skillTags: string[];
+}
+
+// ============================================================
+// Onboarding Types
+// ============================================================
+
+export interface OnboardingStatus {
+  step: number;
+  isComplete: boolean;
+  data: {
+    username: string;
+    hasPassword: boolean;
+    display_name: string | null;
+    avatar_url: string | null;
+    bio: string | null;
+    links: UserLink[];
+    education: EducationEntry[];
+    skills: string[];
+  };
+}
+
+export interface UserLink {
+  id?: string;
+  link_type: string;
+  url: string;
+  label?: string;
+}
+
+export interface EducationEntry {
+  id?: string;
+  degree: string;
+  institution: string;
+  field_of_study?: string;
+  start_year: number;
+  end_year?: number;
+  is_current?: boolean;
+  description?: string;
+}
+
+// ============================================================
+// Resume Builder Types
+// ============================================================
+
+export interface GeneratedResume {
+  id: string;
+  template: string;
+  markdown_content: string;
+  included_sections: Record<string, boolean>;
+  created_at: string;
 }

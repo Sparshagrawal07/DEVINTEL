@@ -4,7 +4,7 @@ import { UserProfile, UserStats, UpdateProfileDTO } from './users.types';
 export class UsersRepository {
   async findById(id: string): Promise<UserProfile | null> {
     return queryOne<UserProfile>(
-      `SELECT id, email, username, display_name, avatar_url, bio, location, is_active, created_at
+      `SELECT id, email, username, display_name, avatar_url, bio, location, is_active, is_onboarded, onboarding_step, created_at
        FROM users WHERE id = $1`,
       [id]
     );
@@ -12,7 +12,7 @@ export class UsersRepository {
 
   async findByUsername(username: string): Promise<UserProfile | null> {
     return queryOne<UserProfile>(
-      `SELECT id, email, username, display_name, avatar_url, bio, location, is_active, created_at
+      `SELECT id, email, username, display_name, avatar_url, bio, location, is_active, is_onboarded, onboarding_step, created_at
        FROM users WHERE username = $1`,
       [username]
     );
@@ -47,7 +47,7 @@ export class UsersRepository {
     return queryOne<UserProfile>(
       `UPDATE users SET ${fields.join(', ')}
        WHERE id = $${idx}
-       RETURNING id, email, username, display_name, avatar_url, bio, location, is_active, created_at`,
+       RETURNING id, email, username, display_name, avatar_url, bio, location, is_active, is_onboarded, onboarding_step, created_at`,
       values
     );
   }

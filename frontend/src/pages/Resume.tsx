@@ -1,11 +1,137 @@
 import { useState, useRef, useEffect } from 'react';
-import { Card, Button, Badge, Skeleton } from '../components/primitives';
+import { Card, Button, Badge, Skeleton, Tabs } from '../components/primitives';
 import { useToast } from '../components/primitives';
 import { resumeService } from '../services/data.service';
-import type { ResumeAnalysis } from '../types';
+import { resumeBuilderService } from '../services/onboarding.service';
+import type { ResumeAnalysis, GeneratedResume } from '../types';
 import { clsx } from 'clsx';
 
 export function ResumePage() {
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-xl font-mono font-bold text-nothing-white tracking-tight">RESUME</h1>
+        <p className="text-[11px] font-mono text-nothing-grey-500 mt-1 tracking-wide">Generate or analyze your developer resume</p>
+      </div>
+
+      <Tabs
+        items={[
+          { id: 'builder', label: 'Resume Builder', content: <ResumeBuilder /> },
+          { id: 'analyzer', label: 'Resume Analyzer', content: <ResumeAnalyzer /> },
+        ]}
+        defaultTab="builder"
+      />
+    </div>
+  );
+}
+
+// ============================================================
+// Resume Builder
+// ============================================================
+
+function ResumeBuilder() {
+  const { addToast } = useToast();
+  const [generating, setGenerating] = useState(false);
+  const [generated, setGenerated] = useState<GeneratedResume | null>(null);
+  const [history, setHistory] = useState<GeneratedResume[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [sections, setSections] = useState<Record<string, boolean>>({
+    header: true, bio: true, links: true, skills: true,
+    education: true, projects: true, github: true, leetcode: true,
+  });
+
+  useEffect(() => {
+    resumeBuilderService.getHistory().then(setHistory).catch(() => {}).finally(() => setLoadingHistory(false));
+  }, []);
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      const result = await resumeBuilderService.generate(sections);
+      setGenerated(result);
+      setHistory((prev) => [result, ...prev]);
+      addToast('Resume generated!', 'success');
+    } catch { addToast('Failed to generate resume', 'error'); }
+    setGenerating(false);
+  };
+
+  const toggleSection = (key: string) => setSections((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="lg:col-span-1 space-y-4">
+        <Card>
+          <h3 className="text-xs font-mono uppercase tracking-[0.15em] text-nothing-grey-400 mb-4">Sections</h3>
+          <div className="space-y-2">
+            {Object.entries(sections).map(([key, enabled]) => (
+              <label key={key} className="flex items-center gap-3 cursor-pointer group">
+                <input type="checkbox" checked={enabled} onChange={() => toggleSection(key)} className="accent-nothing-red" />
+                <span className={clsx('text-xs font-mono uppercase tracking-wider transition-colors', enabled ? 'text-nothing-grey-300' : 'text-nothing-grey-600')}>
+                  {key}
+                </span>
+              </label>
+            ))}
+          </div>
+          <Button variant="primary" className="w-full mt-5" onClick={handleGenerate} isLoading={generating}>
+            Generate Resume
+          </Button>
+        </Card>
+
+        <div className="space-y-2">
+          <h4 className="text-[10px] font-mono uppercase tracking-[0.15em] text-nothing-grey-500">History</h4>
+          {loadingHistory ? (
+            <Card><Skeleton height="40px" /></Card>
+          ) : history.length === 0 ? (
+            <p className="text-[10px] font-mono text-nothing-grey-600">No generated resumes yet</p>
+          ) : (
+            history.slice(0, 5).map((r) => (
+              <div key={r.id} onClick={() => setGenerated(r)} className="cursor-pointer">
+                <Card
+                  hoverable
+                  padding="sm"
+                  className={clsx(generated?.id === r.id && 'border-nothing-red')}
+                >
+                  <p className="text-xs font-mono text-nothing-grey-300">{r.template} template</p>
+                  <p className="text-[10px] font-mono text-nothing-grey-600">{new Date(r.created_at).toLocaleString()}</p>
+                </Card>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="lg:col-span-2">
+        {generated?.markdown_content ? (
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-mono uppercase tracking-[0.15em] text-nothing-grey-400">Preview</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { navigator.clipboard.writeText(generated.markdown_content); addToast('Copied to clipboard', 'success'); }}
+              >
+                Copy Markdown
+              </Button>
+            </div>
+            <div className="prose prose-invert prose-sm max-w-none font-mono text-nothing-grey-300 text-sm whitespace-pre-wrap border border-nothing-grey-800 p-6 max-h-[600px] overflow-y-auto">
+              {generated.markdown_content}
+            </div>
+          </Card>
+        ) : (
+          <Card className="flex items-center justify-center h-64">
+            <p className="text-xs font-mono text-nothing-grey-500">Generate a resume to see the preview</p>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Resume Analyzer (original)
+// ============================================================
+
+function ResumeAnalyzer() {
   const [analyses, setAnalyses] = useState<ResumeAnalysis[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [targetRole, setTargetRole] = useState('');
@@ -42,11 +168,7 @@ export function ResumePage() {
   const getScoreColor = (score: number | string) => { const n = Number(score) || 0; return n >= 80 ? 'text-emerald-400' : n >= 60 ? 'text-amber-400' : 'text-nothing-red'; };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-xl font-mono font-bold text-nothing-white tracking-tight">RESUME ANALYZER</h1>
-        <p className="text-[11px] font-mono text-nothing-grey-500 mt-1 tracking-wide">Upload your resume for AI-powered analysis</p>
-      </div>
+    <div className="space-y-6">
 
       <Card>
         <h3 className="text-xs font-mono uppercase tracking-[0.15em] text-nothing-grey-400 mb-4">Upload</h3>

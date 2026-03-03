@@ -1,6 +1,7 @@
 export { LoginPage } from './Login';
 export { RegisterPage } from './Register';
 export { OAuthCallbackPage } from './OAuthCallback';
+export { OnboardingPage } from './Onboarding';
 export { DashboardPage } from './Dashboard';
 export { RepositoriesPage } from './Repositories';
 export { ResumePage } from './Resume';

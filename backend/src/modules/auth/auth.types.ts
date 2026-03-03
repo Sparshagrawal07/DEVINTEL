@@ -9,6 +9,8 @@ export interface User {
   location: string | null;
   is_active: boolean;
   is_email_verified: boolean;
+  is_onboarded: boolean;
+  onboarding_step: number;
   last_login_at: Date | null;
   created_at: Date;
   updated_at: Date;

@@ -21,6 +21,7 @@ import githubRoutes from './modules/github/github.routes';
 import leetcodeRoutes from './modules/leetcode/leetcode.routes';
 import resumeRoutes from './modules/resume/resume.routes';
 import analyticsRoutes from './modules/analytics/analytics.routes';
+import onboardingRoutes from './modules/onboarding/onboarding.routes';
 
 async function bootstrap(): Promise<void> {
   // Load env early
@@ -85,6 +86,7 @@ async function bootstrap(): Promise<void> {
   const apiRouter = Router();
   apiRouter.use('/auth', authRoutes);
   apiRouter.use('/users', usersRoutes);
+  apiRouter.use('/onboarding', onboardingRoutes);
   apiRouter.use('/github', githubRoutes);
   apiRouter.use('/leetcode', leetcodeRoutes);
   apiRouter.use('/resume', resumeRoutes);

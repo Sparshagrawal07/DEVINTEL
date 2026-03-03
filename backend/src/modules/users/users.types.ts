@@ -7,6 +7,8 @@ export interface UserProfile {
   bio: string | null;
   location: string | null;
   is_active: boolean;
+  is_onboarded: boolean;
+  onboarding_step: number;
   created_at: Date;
 }
 

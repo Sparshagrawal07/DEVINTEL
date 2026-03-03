@@ -13,6 +13,7 @@ interface AuthStore {
   register: (data: { email: string; username: string; password: string; display_name?: string }) => Promise<void>;
   handleOAuthCallback: (accessToken: string, refreshToken: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   clearError: () => void;
   updateUser: (partial: Partial<User>) => void;
 }
@@ -90,6 +91,13 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  refreshUser: async () => {
+    try {
+      const user = await authService.getMe();
+      set({ user });
+    } catch { /* ignore */ }
+  },
 
   updateUser: (partial) =>
     set((state) => ({ user: state.user ? { ...state.user, ...partial } : state.user })),

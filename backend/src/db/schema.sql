@@ -19,6 +19,8 @@ CREATE TABLE users (
   location VARCHAR(128),
   is_active BOOLEAN DEFAULT TRUE,
   is_email_verified BOOLEAN DEFAULT FALSE,
+  is_onboarded BOOLEAN DEFAULT FALSE,
+  onboarding_step INTEGER DEFAULT 0,
   last_login_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -27,6 +29,7 @@ CREATE TABLE users (
 CREATE INDEX idx_users_email ON users (email);
 CREATE INDEX idx_users_username ON users (username);
 CREATE INDEX idx_users_created_at ON users (created_at);
+CREATE INDEX idx_users_onboarded ON users (is_onboarded);
 
 -- ============================================================
 -- OAUTH ACCOUNTS TABLE
@@ -365,3 +368,83 @@ CREATE TRIGGER update_skills_modtime BEFORE UPDATE ON skills FOR EACH ROW EXECUT
 CREATE TRIGGER update_resume_modtime BEFORE UPDATE ON resume_analyses FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 CREATE TRIGGER update_career_modtime BEFORE UPDATE ON career_targets FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 CREATE TRIGGER update_leetcode_profiles_modtime BEFORE UPDATE ON leetcode_profiles FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+
+-- ============================================================
+-- EDUCATION TABLE
+-- ============================================================
+CREATE TABLE education (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  degree VARCHAR(128) NOT NULL,
+  institution VARCHAR(256) NOT NULL,
+  field_of_study VARCHAR(256),
+  start_year INTEGER NOT NULL,
+  end_year INTEGER,
+  is_current BOOLEAN DEFAULT FALSE,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_education_user ON education (user_id);
+
+-- ============================================================
+-- USER LINKS TABLE
+-- ============================================================
+CREATE TABLE user_links (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  link_type VARCHAR(32) NOT NULL CHECK (link_type IN ('leetcode', 'linkedin', 'portfolio', 'twitter', 'github', 'blog', 'other')),
+  url TEXT NOT NULL,
+  label VARCHAR(128),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, link_type)
+);
+
+CREATE INDEX idx_user_links_user ON user_links (user_id);
+
+-- ============================================================
+-- PROJECTS TABLE
+-- ============================================================
+CREATE TABLE projects (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(256) NOT NULL,
+  description TEXT,
+  tech_stack TEXT[] DEFAULT '{}',
+  url TEXT,
+  github_url TEXT,
+  image_url TEXT,
+  start_date DATE,
+  end_date DATE,
+  is_current BOOLEAN DEFAULT FALSE,
+  highlights TEXT[] DEFAULT '{}',
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_projects_user ON projects (user_id);
+CREATE INDEX idx_projects_sort ON projects (user_id, sort_order);
+
+-- ============================================================
+-- GENERATED RESUMES TABLE
+-- ============================================================
+CREATE TABLE generated_resumes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  template VARCHAR(32) DEFAULT 'minimal',
+  markdown_content TEXT NOT NULL,
+  included_sections JSONB DEFAULT '{}',
+  data_snapshot JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_generated_resumes_user ON generated_resumes (user_id);
+
+CREATE TRIGGER update_education_modtime BEFORE UPDATE ON education FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_user_links_modtime BEFORE UPDATE ON user_links FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_projects_modtime BEFORE UPDATE ON projects FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_generated_resumes_modtime BEFORE UPDATE ON generated_resumes FOR EACH ROW EXECUTE PROCEDURE update_modified_column();

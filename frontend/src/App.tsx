@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider, Spinner } from './components/primitives';
-import { AppLayout, ProtectedRoute, PublicRoute } from './components/layout';
+import { AppLayout, ProtectedRoute, PublicRoute, OnboardingRoute } from './components/layout';
 import { useAuthStore } from './context/auth.store';
 import { useThemeStore } from './context/theme.store';
 
@@ -9,6 +9,7 @@ import { useThemeStore } from './context/theme.store';
 const LoginPage = lazy(() => import('./pages/Login').then((m) => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import('./pages/Register').then((m) => ({ default: m.RegisterPage })));
 const OAuthCallbackPage = lazy(() => import('./pages/OAuthCallback').then((m) => ({ default: m.OAuthCallbackPage })));
+const OnboardingPage = lazy(() => import('./pages/Onboarding').then((m) => ({ default: m.OnboardingPage })));
 const DashboardPage = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.DashboardPage })));
 const RepositoriesPage = lazy(() => import('./pages/Repositories').then((m) => ({ default: m.RepositoriesPage })));
 const ResumePage = lazy(() => import('./pages/Resume').then((m) => ({ default: m.ResumePage })));
@@ -52,6 +53,12 @@ export default function App() {
                 element={<PublicRoute><RegisterPage /></PublicRoute>}
               />
               <Route path="/auth/callback" element={<OAuthCallbackPage />} />
+
+              {/* Onboarding route (auth required, not yet onboarded) */}
+              <Route
+                path="/onboarding"
+                element={<OnboardingRoute><OnboardingPage /></OnboardingRoute>}
+              />
 
               {/* Protected routes with layout */}
               <Route
