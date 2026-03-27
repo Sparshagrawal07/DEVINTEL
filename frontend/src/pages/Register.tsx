@@ -21,9 +21,9 @@ export function RegisterPage() {
     if (form.password.length < 8) { addToast('Password must be at least 8 characters', 'error'); return; }
     setLoading(true);
     try {
-      await register({ email: form.email, username: form.username, password: form.password, display_name: form.display_name || undefined });
+      const user = await register({ email: form.email, username: form.username, password: form.password, display_name: form.display_name || undefined });
       addToast('Account created successfully!', 'success');
-      navigate('/dashboard', { replace: true });
+      navigate(user.is_onboarded ? '/dashboard' : '/onboarding', { replace: true });
     } catch (err: any) {
       addToast(err.message || 'Registration failed', 'error');
     } finally {

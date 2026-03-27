@@ -20,9 +20,9 @@ export function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(email, password);
+      const user = await login(email, password);
       addToast('Welcome back!', 'success');
-      navigate(from, { replace: true });
+      navigate(user.is_onboarded ? from : '/onboarding', { replace: true });
     } catch (err: any) {
       addToast(err.message || 'Invalid credentials', 'error');
     } finally {

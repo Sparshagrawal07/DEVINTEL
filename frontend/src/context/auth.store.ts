@@ -9,9 +9,9 @@ interface AuthStore {
   isLoading: boolean;
   error: string | null;
   initialize: () => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
-  register: (data: { email: string; username: string; password: string; display_name?: string }) => Promise<void>;
-  handleOAuthCallback: (accessToken: string, refreshToken: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
+  register: (data: { email: string; username: string; password: string; display_name?: string }) => Promise<User>;
+  handleOAuthCallback: (accessToken: string, refreshToken: string) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   clearError: () => void;
@@ -47,6 +47,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       const { user } = await authService.login({ email, password });
       set({ user, isAuthenticated: true, isLoading: false });
+      return user;
     } catch (err: any) {
       set({ error: err.message || 'Login failed', isLoading: false });
       throw err;
@@ -58,6 +59,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       const { user } = await authService.register(data);
       set({ user, isAuthenticated: true, isLoading: false });
+      return user;
     } catch (err: any) {
       set({ error: err.message || 'Registration failed', isLoading: false });
       throw err;
@@ -69,6 +71,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       const user = await authService.getMe();
       set({ user, isAuthenticated: true, isLoading: false });
+      return user;
     } catch (err: any) {
       apiClient.clearTokens();
       set({ error: 'OAuth authentication failed', isLoading: false });

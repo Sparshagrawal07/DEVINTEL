@@ -22,10 +22,8 @@ export function OAuthCallbackPage() {
 
     if (accessToken && refreshToken) {
       handleOAuthCallback(accessToken, refreshToken)
-        .then(() => {
-          // Check if user needs onboarding
-          const isNew = searchParams.get('isNewUser') === 'true';
-          navigate(isNew ? '/onboarding' : '/dashboard', { replace: true });
+        .then((user) => {
+          navigate(user.is_onboarded ? '/dashboard' : '/onboarding', { replace: true });
         })
         .catch(() => {
           setError('Authentication failed. Redirecting...');
