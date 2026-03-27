@@ -3,6 +3,7 @@ import { StatusCodes } from 'http-status-codes';
 import { AuthService } from './auth.service';
 import { UsersRepository } from '../users/users.repository';
 import { getEnv } from '../../config/env';
+import { logger } from '../../config/logger';
 
 export class AuthController {
   constructor(
@@ -72,25 +73,36 @@ export class AuthController {
 
   githubCallback = async (req: Request, res: Response): Promise<void> => {
     const { code } = req.query;
+    const env = getEnv();
 
     if (!code || typeof code !== 'string') {
-      res.status(StatusCodes.BAD_REQUEST).json({
-        status: 'error',
-        message: 'Missing authorization code',
+      const params = new URLSearchParams({
+        error: 'Missing authorization code',
       });
+      res.redirect(`${env.FRONTEND_URL}/auth/callback?${params}`);
       return;
     }
 
-    const { user, tokens, isNewUser } = await this.authService.handleGitHubCallback(code);
-    const env = getEnv();
+    try {
+      const { tokens, isNewUser } = await this.authService.handleGitHubCallback(code);
 
-    // Redirect to frontend with tokens
-    const params = new URLSearchParams({
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      isNewUser: String(isNewUser),
-    });
+      // Redirect to frontend with tokens
+      const params = new URLSearchParams({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        isNewUser: String(isNewUser),
+      });
 
-    res.redirect(`${env.FRONTEND_URL}/auth/callback?${params}`);
+      res.redirect(`${env.FRONTEND_URL}/auth/callback?${params}`);
+    } catch (error) {
+      logger.error('GitHub OAuth callback failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      const params = new URLSearchParams({
+        error: error instanceof Error ? error.message : 'OAuth authentication failed',
+      });
+      res.redirect(`${env.FRONTEND_URL}/auth/callback?${params}`);
+    }
   };
 }

@@ -74,7 +74,9 @@ export interface GitHubProfile {
 }
 
 export interface GitHubTokenResponse {
-  access_token: string;
-  token_type: string;
-  scope: string;
+  access_token?: string;
+  token_type?: string;
+  scope?: string;
+  error?: string;
+  error_description?: string;
 }

@@ -21,6 +21,9 @@ import { JwtPayload } from '../../middleware/auth.middleware';
 export class AuthService {
   constructor(private readonly authRepo: AuthRepository) {}
 
+  private readonly oauthRequestTimeoutMs = 10000;
+  private readonly oauthMaxRetries = 2;
+
   async register(dto: RegisterDTO): Promise<{ user: Omit<User, 'password_hash'>; tokens: TokenPair }> {
     const existingEmail = await this.authRepo.findUserByEmail(dto.email);
     if (existingEmail) {
@@ -213,22 +216,30 @@ export class AuthService {
   private async exchangeGitHubCode(code: string): Promise<string> {
     const env = getEnv();
 
-    const response = await fetch('https://github.com/login/oauth/access_token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
+    const response = await this.fetchWithRetry(
+      'https://github.com/login/oauth/access_token',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          client_id: env.GITHUB_CLIENT_ID,
+          client_secret: env.GITHUB_CLIENT_SECRET,
+          code,
+          redirect_uri: env.GITHUB_CALLBACK_URL,
+        }),
       },
-      body: JSON.stringify({
-        client_id: env.GITHUB_CLIENT_ID,
-        client_secret: env.GITHUB_CLIENT_SECRET,
-        code,
-      }),
-    });
+      'GitHub token exchange'
+    );
 
     const data = (await response.json()) as GitHubTokenResponse;
 
     if (!data.access_token) {
+      if (data.error) {
+        throw new BadRequestError(`GitHub OAuth failed: ${data.error_description || data.error}`);
+      }
       throw new BadRequestError('Failed to exchange GitHub code for token');
     }
 
@@ -236,12 +247,16 @@ export class AuthService {
   }
 
   private async fetchGitHubProfile(accessToken: string): Promise<GitHubProfile> {
-    const response = await fetch('https://api.github.com/user', {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: 'application/vnd.github.v3+json',
+    const response = await this.fetchWithRetry(
+      'https://api.github.com/user',
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/vnd.github.v3+json',
+        },
       },
-    });
+      'GitHub profile fetch'
+    );
 
     if (!response.ok) {
       throw new BadRequestError('Failed to fetch GitHub profile');
@@ -251,14 +266,46 @@ export class AuthService {
   }
 
   private async fetchGitHubEmails(accessToken: string): Promise<any[]> {
-    const response = await fetch('https://api.github.com/user/emails', {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: 'application/vnd.github.v3+json',
+    const response = await this.fetchWithRetry(
+      'https://api.github.com/user/emails',
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/vnd.github.v3+json',
+        },
       },
-    });
+      'GitHub email fetch'
+    );
 
     if (!response.ok) return [];
     return (await response.json()) as any[];
+  }
+
+  private async fetchWithRetry(url: string, init: RequestInit, operationName: string): Promise<Response> {
+    for (let attempt = 1; attempt <= this.oauthMaxRetries; attempt++) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.oauthRequestTimeoutMs);
+
+      try {
+        const response = await fetch(url, {
+          ...init,
+          signal: controller.signal,
+        });
+
+        if (!response.ok && response.status >= 500 && attempt < this.oauthMaxRetries) {
+          continue;
+        }
+
+        return response;
+      } catch (error) {
+        if (attempt >= this.oauthMaxRetries) {
+          break;
+        }
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    throw new BadRequestError(`${operationName} failed. Please try again.`);
   }
 }
