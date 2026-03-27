@@ -123,6 +123,9 @@ async function bootstrap(): Promise<void> {
   try {
     const pool = getPool();
     await pool.query('SELECT 1');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_onboarded BOOLEAN DEFAULT FALSE');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_step INTEGER DEFAULT 0');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_users_onboarded ON users (is_onboarded)');
     logger.info('Database connection established');
   } catch (error) {
     logger.warn('Database not available, continuing without DB:', error);

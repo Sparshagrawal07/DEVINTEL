@@ -13,6 +13,22 @@ async function migrate(): Promise<void> {
 
     logger.info('Running database migration...');
     await pool.query(sql);
+
+    // Apply additive migrations in lexical order.
+    const migrationsDir = path.join(__dirname, 'migrations');
+    if (fs.existsSync(migrationsDir)) {
+      const files = fs.readdirSync(migrationsDir)
+        .filter((name) => name.endsWith('.sql'))
+        .sort();
+
+      for (const file of files) {
+        const migrationPath = path.join(migrationsDir, file);
+        const migrationSql = fs.readFileSync(migrationPath, 'utf-8');
+        logger.info(`Applying migration ${file}...`);
+        await pool.query(migrationSql);
+      }
+    }
+
     logger.info('Database migration completed successfully');
   } catch (error) {
     logger.error('Migration failed:', error);
