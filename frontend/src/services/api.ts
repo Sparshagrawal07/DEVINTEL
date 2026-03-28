@@ -113,7 +113,13 @@ class ApiClient {
     const data = await response.json();
 
     if (!response.ok) {
-      if (response.status === 403 && data?.code === 'ONBOARDING_REQUIRED') {
+      const isOnboardingRequired =
+        response.status === 403 && (
+          data?.code === 'ONBOARDING_REQUIRED' ||
+          data?.message === 'Onboarding not completed'
+        );
+
+      if (isOnboardingRequired) {
         if (typeof window !== 'undefined' && window.location.pathname !== '/onboarding') {
           window.location.replace('/onboarding');
         }
