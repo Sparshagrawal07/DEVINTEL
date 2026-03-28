@@ -87,6 +87,10 @@ export interface GitHubRepo {
 
 export interface GitHubCommit {
   sha: string;
+  author?: {
+    id: number;
+    login: string;
+  } | null;
   commit: {
     message: string;
     author: {
@@ -105,6 +109,10 @@ export interface GitHubCommit {
 
 export interface GitHubPR {
   id: number;
+  user?: {
+    id: number;
+    login: string;
+  };
   number: number;
   title: string;
   state: string;

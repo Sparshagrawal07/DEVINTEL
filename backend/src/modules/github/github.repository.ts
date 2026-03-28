@@ -77,6 +77,15 @@ export class GitHubRepository {
     );
   }
 
+  async deleteCommitsByUser(userId: string, repositoryId?: string): Promise<void> {
+    if (repositoryId) {
+      await query('DELETE FROM commits WHERE user_id = $1 AND repository_id = $2', [userId, repositoryId]);
+      return;
+    }
+
+    await query('DELETE FROM commits WHERE user_id = $1', [userId]);
+  }
+
   async getCommitFrequency(userId: string, days: number = 365): Promise<{ date: string; count: number }[]> {
     return query<{ date: string; count: number }>(
       `SELECT DATE(committed_at AT TIME ZONE 'UTC') as date, COUNT(*)::int as count
@@ -150,6 +159,15 @@ export class GitHubRepository {
       'SELECT * FROM pull_requests WHERE user_id = $1 ORDER BY pr_created_at DESC',
       [userId]
     );
+  }
+
+  async deletePRsByUser(userId: string, repositoryId?: string): Promise<void> {
+    if (repositoryId) {
+      await query('DELETE FROM pull_requests WHERE user_id = $1 AND repository_id = $2', [userId, repositoryId]);
+      return;
+    }
+
+    await query('DELETE FROM pull_requests WHERE user_id = $1', [userId]);
   }
 
   async getPRStats(userId: string): Promise<{ total: number; merged: number; open: number }> {

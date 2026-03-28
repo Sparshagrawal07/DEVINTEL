@@ -13,6 +13,18 @@ import { logger } from '../../config/logger';
 export class GitHubService {
   constructor(private readonly ghRepo: GitHubRepository) {}
 
+  async getGitHubIdentity(userId: string): Promise<{ username: string | null; providerUserId: string | null }> {
+    const oauth = await queryOne<{ provider_username: string | null; provider_user_id: string | null }>(
+      'SELECT provider_username, provider_user_id FROM oauth_accounts WHERE user_id = $1 AND provider = $2',
+      [userId, 'github']
+    );
+
+    return {
+      username: oauth?.provider_username ?? null,
+      providerUserId: oauth?.provider_user_id ?? null,
+    };
+  }
+
   async getAccessToken(userId: string): Promise<string> {
     const oauth = await queryOne<{ access_token: string }>(
       'SELECT access_token FROM oauth_accounts WHERE user_id = $1 AND provider = $2',
@@ -77,7 +89,9 @@ export class GitHubService {
 
   async syncCommits(userId: string, repoId?: string): Promise<{ synced: number }> {
     const accessToken = await this.getAccessToken(userId);
-    const githubUsername = await this.getGitHubUsername(userId);
+    const identity = await this.getGitHubIdentity(userId);
+    const githubUsername = identity.username;
+    const githubUserId = identity.providerUserId ? Number(identity.providerUserId) : null;
 
     let repos;
     if (repoId) {
@@ -88,11 +102,21 @@ export class GitHubService {
       repos = await this.ghRepo.findReposByUser(userId);
     }
 
+    // Reset commit rows for the target scope so results reflect current identity filters.
+    await this.ghRepo.deleteCommitsByUser(userId, repoId);
+
     let synced = 0;
 
     for (const repo of repos) {
       try {
-        const commits = await this.fetchCommits(accessToken, repo.full_name, githubUsername || undefined);
+        let commits = await this.fetchCommits(accessToken, repo.full_name, githubUsername || undefined);
+
+        // Fallback: some repos return no data for author=username even when commits exist.
+        // In that case, fetch recent commits and filter by GitHub user id.
+        if (commits.length === 0 && githubUserId) {
+          const recentCommits = await this.fetchCommits(accessToken, repo.full_name);
+          commits = recentCommits.filter((commit) => commit.author?.id === githubUserId);
+        }
 
         for (const commit of commits) {
           await this.ghRepo.upsertCommit({
@@ -119,15 +143,30 @@ export class GitHubService {
 
   async syncPullRequests(userId: string): Promise<{ synced: number }> {
     const accessToken = await this.getAccessToken(userId);
+    const identity = await this.getGitHubIdentity(userId);
+    const githubUsername = identity.username;
+    const githubUserId = identity.providerUserId ? Number(identity.providerUserId) : null;
     const repos = await this.ghRepo.findReposByUser(userId);
+
+    // Rebuild PR rows from API source of truth.
+    await this.ghRepo.deletePRsByUser(userId);
 
     let synced = 0;
 
     for (const repo of repos) {
       try {
         const prs = await this.fetchPullRequests(accessToken, repo.full_name);
+        const ownPrs = prs.filter((pr) => {
+          if (githubUserId && pr.user?.id) {
+            return pr.user.id === githubUserId;
+          }
+          if (githubUsername && pr.user?.login) {
+            return pr.user.login.toLowerCase() === githubUsername.toLowerCase();
+          }
+          return false;
+        });
 
-        for (const pr of prs) {
+        for (const pr of ownPrs) {
           await this.ghRepo.upsertPR({
             repository_id: repo.id,
             user_id: userId,
@@ -321,7 +360,7 @@ export class GitHubService {
 
   private async fetchCommits(accessToken: string, fullName: string, author?: string): Promise<GitHubCommit[]> {
     const since = new Date();
-    since.setFullYear(since.getFullYear() - 1);
+    since.setFullYear(since.getFullYear() - 3);
 
     const allCommits: GitHubCommit[] = [];
     let page = 1;
@@ -353,17 +392,30 @@ export class GitHubService {
   }
 
   private async fetchPullRequests(accessToken: string, fullName: string): Promise<GitHubPR[]> {
-    const response = await fetch(
-      `https://api.github.com/repos/${fullName}/pulls?state=all&per_page=100`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          Accept: 'application/vnd.github.v3+json',
-        },
-      }
-    );
+    const allPrs: GitHubPR[] = [];
+    let page = 1;
+    const perPage = 100;
 
-    if (!response.ok) return [];
-    return (await response.json()) as GitHubPR[];
+    while (true) {
+      const response = await fetch(
+        `https://api.github.com/repos/${fullName}/pulls?state=all&per_page=${perPage}&page=${page}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Accept: 'application/vnd.github.v3+json',
+          },
+        }
+      );
+
+      if (!response.ok) break;
+      const prs = (await response.json()) as GitHubPR[];
+      if (prs.length === 0) break;
+
+      allPrs.push(...prs);
+      if (prs.length < perPage) break;
+      page++;
+    }
+
+    return allPrs;
   }
 }
