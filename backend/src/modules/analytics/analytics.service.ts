@@ -89,15 +89,21 @@ export class AnalyticsService {
     const cached = await cacheGet<DashboardData>(`dashboard:${userId}`);
     if (cached) return cached;
 
-    const [currentScore, scoreTrend, skills, heatmap, recentActivity, activeTarget, lcProfile] = await Promise.all([
+    const [currentScore, scoreTrend, skills, heatmap, recentActivity, activeTarget] = await Promise.all([
       this.analyticsRepo.getLatestScore(userId),
       this.analyticsRepo.getScoreTrend(userId, 90),
       this.analyticsRepo.getUserSkills(userId),
       this.analyticsRepo.getActivityHeatmap(userId, 365),
       this.analyticsRepo.getRecentActivity(userId, 20),
       this.analyticsRepo.getActiveCareerTarget(userId),
-      this.lcRepo.getProfileByUser(userId),
     ]);
+
+    let lcProfile = null;
+    try {
+      lcProfile = await this.lcRepo.getProfileByUser(userId);
+    } catch (error) {
+      logger.warn('LeetCode profile unavailable; continuing without LeetCode data', error);
+    }
 
     // Compute skill gaps
     const skillGaps: SkillGap[] = [];
@@ -145,7 +151,13 @@ export class AnalyticsService {
     // Build LeetCode dashboard section
     let leetcodeData: DashboardData['leetcode'] = null;
     if (lcProfile) {
-      const lcCalendar = await this.lcRepo.getSubmissionCalendar(userId, 365);
+      let lcCalendar: { date: string; count: number }[] = [];
+      try {
+        lcCalendar = await this.lcRepo.getSubmissionCalendar(userId, 365);
+      } catch (error) {
+        logger.warn('LeetCode calendar unavailable; continuing with partial LeetCode data', error);
+      }
+
       leetcodeData = {
         connected: true,
         username: lcProfile.leetcode_username,
