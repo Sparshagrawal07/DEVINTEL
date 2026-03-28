@@ -14,7 +14,7 @@ const usersController = new UsersController(usersService);
 
 router.get('/me', authenticate, asyncHandler(usersController.getMyProfile));
 router.patch('/me', authenticate, requireOnboarded, validate(updateProfileSchema), asyncHandler(usersController.updateProfile));
-router.get('/me/stats', authenticate, requireOnboarded, asyncHandler(usersController.getStats));
+router.get('/me/stats', authenticate, asyncHandler(usersController.getStats));
 router.delete('/me', authenticate, requireOnboarded, asyncHandler(usersController.deleteAccount));
 router.get('/:username', asyncHandler(usersController.getByUsername));
 
