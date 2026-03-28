@@ -80,6 +80,12 @@ async function bootstrap(): Promise<void> {
     });
   });
 
+  // Browsers often request /favicon.ico automatically.
+  // Return 204 to avoid noisy 404 logs when no icon file is configured.
+  app.get('/favicon.ico', (_req, res) => {
+    res.status(204).end();
+  });
+
   // ============================================================
   // API ROUTES
   // ============================================================
