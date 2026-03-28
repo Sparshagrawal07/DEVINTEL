@@ -113,6 +113,12 @@ class ApiClient {
     const data = await response.json();
 
     if (!response.ok) {
+      if (response.status === 403 && data?.code === 'ONBOARDING_REQUIRED') {
+        if (typeof window !== 'undefined' && window.location.pathname !== '/onboarding') {
+          window.location.replace('/onboarding');
+        }
+      }
+
       throw new ApiError(
         data.message || 'Request failed',
         response.status,
