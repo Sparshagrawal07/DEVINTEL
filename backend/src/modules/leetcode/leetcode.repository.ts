@@ -3,6 +3,8 @@ import { LeetCodeProfile, LeetCodeSubmission } from './leetcode.types';
 import { logger } from '../../config/logger';
 
 export class LeetCodeRepository {
+  private schemaAvailable: boolean | null = null;
+
   private isMissingRelationError(error: unknown): boolean {
     return (
       typeof error === 'object' &&
@@ -10,6 +12,23 @@ export class LeetCodeRepository {
       'code' in error &&
       (error as { code?: string }).code === '42P01'
     );
+  }
+
+  private async hasLeetCodeSchema(): Promise<boolean> {
+    if (this.schemaAvailable !== null) {
+      return this.schemaAvailable;
+    }
+
+    try {
+      const table = await queryOne<{ regclass: string | null }>(
+        "SELECT to_regclass('public.leetcode_profiles') as regclass"
+      );
+      this.schemaAvailable = !!table?.regclass;
+      return this.schemaAvailable;
+    } catch {
+      this.schemaAvailable = false;
+      return false;
+    }
   }
 
   async upsertProfile(data: {
@@ -31,6 +50,10 @@ export class LeetCodeRepository {
     streak: number;
     last_synced_at: Date;
   }): Promise<LeetCodeProfile> {
+    if (!(await this.hasLeetCodeSchema())) {
+      throw new Error('LeetCode integration is unavailable on this deployment');
+    }
+
     try {
       const result = await queryOne<LeetCodeProfile>(
         `INSERT INTO leetcode_profiles (
@@ -76,6 +99,10 @@ export class LeetCodeRepository {
   }
 
   async getProfileByUser(userId: string): Promise<LeetCodeProfile | null> {
+    if (!(await this.hasLeetCodeSchema())) {
+      return null;
+    }
+
     try {
       return queryOne<LeetCodeProfile>(
         'SELECT * FROM leetcode_profiles WHERE user_id = $1',
@@ -83,6 +110,7 @@ export class LeetCodeRepository {
       );
     } catch (error) {
       if (this.isMissingRelationError(error)) {
+        this.schemaAvailable = false;
         return null;
       }
       throw error;
@@ -90,10 +118,15 @@ export class LeetCodeRepository {
   }
 
   async deleteProfile(userId: string): Promise<void> {
+    if (!(await this.hasLeetCodeSchema())) {
+      return;
+    }
+
     try {
       await query('DELETE FROM leetcode_profiles WHERE user_id = $1', [userId]);
     } catch (error) {
       if (this.isMissingRelationError(error)) {
+        this.schemaAvailable = false;
         return;
       }
       throw error;
@@ -113,6 +146,10 @@ export class LeetCodeRepository {
     timestamp: number;
     submitted_at: Date;
   }): Promise<LeetCodeSubmission> {
+    if (!(await this.hasLeetCodeSchema())) {
+      throw new Error('LeetCode integration is unavailable on this deployment');
+    }
+
     try {
       const result = await queryOne<LeetCodeSubmission>(
         `INSERT INTO leetcode_submissions (
@@ -133,6 +170,7 @@ export class LeetCodeRepository {
       return result!;
     } catch (error) {
       if (this.isMissingRelationError(error)) {
+        this.schemaAvailable = false;
         throw new Error('LeetCode integration is unavailable on this deployment');
       }
       throw error;
@@ -140,6 +178,10 @@ export class LeetCodeRepository {
   }
 
   async getRecentSubmissions(userId: string, limit: number = 20): Promise<LeetCodeSubmission[]> {
+    if (!(await this.hasLeetCodeSchema())) {
+      return [];
+    }
+
     try {
       return query<LeetCodeSubmission>(
         `SELECT * FROM leetcode_submissions
@@ -149,6 +191,7 @@ export class LeetCodeRepository {
       );
     } catch (error) {
       if (this.isMissingRelationError(error)) {
+        this.schemaAvailable = false;
         return [];
       }
       throw error;
@@ -156,6 +199,10 @@ export class LeetCodeRepository {
   }
 
   async getSubmissionCalendar(userId: string, days: number = 365): Promise<{ date: string; count: number }[]> {
+    if (!(await this.hasLeetCodeSchema())) {
+      return [];
+    }
+
     try {
       return query<{ date: string; count: number }>(
         `SELECT DATE(submitted_at AT TIME ZONE 'UTC') as date, COUNT(*)::int as count
@@ -167,6 +214,7 @@ export class LeetCodeRepository {
       );
     } catch (error) {
       if (this.isMissingRelationError(error)) {
+        this.schemaAvailable = false;
         return [];
       }
       throw error;
@@ -174,6 +222,10 @@ export class LeetCodeRepository {
   }
 
   async getDifficultyBreakdown(userId: string): Promise<{ difficulty: string; count: number }[]> {
+    if (!(await this.hasLeetCodeSchema())) {
+      return [];
+    }
+
     try {
       return query<{ difficulty: string; count: number }>(
         `SELECT difficulty, COUNT(DISTINCT title_slug)::int as count
@@ -184,6 +236,7 @@ export class LeetCodeRepository {
       );
     } catch (error) {
       if (this.isMissingRelationError(error)) {
+        this.schemaAvailable = false;
         return [];
       }
       throw error;
