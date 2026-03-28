@@ -53,19 +53,43 @@ export class UsersRepository {
   }
 
   async getUserStats(userId: string): Promise<UserStats> {
-    const stats = await queryOne<UserStats>(`
+    const coreStats = await queryOne<Omit<UserStats, 'leetcode_solved' | 'leetcode_username'>>(`
       SELECT
         (SELECT COUNT(*)::int FROM repositories WHERE user_id = $1) AS total_repos,
         (SELECT COUNT(*)::int FROM commits WHERE user_id = $1) AS total_commits,
         (SELECT COUNT(*)::int FROM pull_requests WHERE user_id = $1) AS total_prs,
         (SELECT COUNT(*)::int FROM skills WHERE user_id = $1) AS total_skills,
         (SELECT composite_score FROM dev_scores WHERE user_id = $1 ORDER BY snapshot_date DESC LIMIT 1) AS latest_dev_score,
-        (SELECT created_at FROM users WHERE id = $1) AS member_since,
-        (SELECT total_solved FROM leetcode_profiles WHERE user_id = $1) AS leetcode_solved,
-        (SELECT leetcode_username FROM leetcode_profiles WHERE user_id = $1) AS leetcode_username
+        (SELECT created_at FROM users WHERE id = $1) AS member_since
     `, [userId]);
 
-    return stats ?? {
+    let leetcode_solved: number | null = null;
+    let leetcode_username: string | null = null;
+
+    try {
+      const lcStats = await queryOne<{ total_solved: number | null; leetcode_username: string | null }>(
+        'SELECT total_solved, leetcode_username FROM leetcode_profiles WHERE user_id = $1',
+        [userId]
+      );
+      leetcode_solved = lcStats?.total_solved ?? null;
+      leetcode_username = lcStats?.leetcode_username ?? null;
+    } catch (error) {
+      const isMissingRelation =
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: string }).code === '42P01';
+
+      if (!isMissingRelation) {
+        throw error;
+      }
+    }
+
+    return coreStats ? {
+      ...coreStats,
+      leetcode_solved,
+      leetcode_username,
+    } : {
       total_repos: 0,
       total_commits: 0,
       total_prs: 0,
